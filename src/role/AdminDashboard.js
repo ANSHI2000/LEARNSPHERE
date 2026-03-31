@@ -1,125 +1,74 @@
-import React, { useState } from 'react';
-import './AdminDashboard.css';
+import React, { useState, useEffect } from 'react'
+import { adminService } from '../services/admin'
+import './AdminDashboard.css'
 
-const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('users');
-  const [users, setUsers] = useState({
-    students: [
-      { id: 1, name: 'John Doe', email: 'john@student.edu', status: 'active', joinDate: '2024-01-15' },
-      { id: 2, name: 'Jane Smith', email: 'jane@student.edu', status: 'active', joinDate: '2024-02-20' },
-      { id: 3, name: 'Bob Johnson', email: 'bob@student.edu', status: 'inactive', joinDate: '2024-01-10' },
-    ],
-    teachers: [
-      { id: 1, name: 'Dr. Sarah Wilson', email: 'sarah@teacher.edu', status: 'approved', department: 'Computer Science', joinDate: '2023-08-15' },
-      { id: 2, name: 'Prof. Michael Brown', email: 'michael@teacher.edu', status: 'pending', department: 'Mathematics', joinDate: '2024-03-01' },
-      { id: 3, name: 'Dr. Emily Davis', email: 'emily@teacher.edu', status: 'approved', department: 'Physics', joinDate: '2023-09-10' },
-      { id: 4, name: 'Prof. David Lee', email: 'david@teacher.edu', status: 'pending', department: 'Chemistry', joinDate: '2024-02-28' },
-    ]
-  });
+const AdminDashboard = ({ onLogout, user }) => {
+  const [users, setUsers] = useState([])
+  const [analytics, setAnalytics] = useState({})
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('users')
 
-  const [analytics, setAnalytics] = useState({
-    totalStudents: 1250,
-    totalTeachers: 45,
-    pendingApprovals: 3,
-    activeCourses: 78,
-    monthlyActiveUsers: 890,
-    platformUsage: 78,
-    popularCategories: [
-      { name: 'Computer Science', count: 45 },
-      { name: 'Mathematics', count: 32 },
-      { name: 'Physics', count: 28 },
-      { name: 'Chemistry', count: 25 },
-      { name: 'Literature', count: 20 },
-    ]
-  });
+  useEffect(() => {
+    loadAdminData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const [categories, setCategories] = useState([
-    { id: 1, name: 'Computer Science', courseCount: 45, status: 'active' },
-    { id: 2, name: 'Mathematics', courseCount: 32, status: 'active' },
-    { id: 3, name: 'Physics', courseCount: 28, status: 'active' },
-    { id: 4, name: 'Chemistry', courseCount: 25, status: 'active' },
-    { id: 5, name: 'Literature', courseCount: 20, status: 'inactive' },
-    { id: 6, name: 'History', courseCount: 15, status: 'active' },
-  ]);
-
-  const [policies, setPolicies] = useState([
-    { id: 1, title: 'User Agreement', lastUpdated: '2024-01-15', status: 'active' },
-    { id: 2, title: 'Privacy Policy', lastUpdated: '2024-02-01', status: 'active' },
-    { id: 3, title: 'Teacher Guidelines', lastUpdated: '2024-02-20', status: 'active' },
-    { id: 4, title: 'Course Creation Policy', lastUpdated: '2024-01-10', status: 'draft' },
-  ]);
-
-  const [newCategory, setNewCategory] = useState('');
-  const [newPolicy, setNewPolicy] = useState({ title: '', content: '' });
-
-  const handleApproveTeacher = (teacherId) => {
-    setUsers(prev => ({
-      ...prev,
-      teachers: prev.teachers.map(teacher =>
-        teacher.id === teacherId ? { ...teacher, status: 'approved' } : teacher
-      )
-    }));
-  };
-
-  const handleRejectTeacher = (teacherId) => {
-    setUsers(prev => ({
-      ...prev,
-      teachers: prev.teachers.filter(teacher => teacher.id !== teacherId)
-    }));
-  };
-
-  const handleAddCategory = () => {
-    if (newCategory.trim()) {
-      setCategories([
-        ...categories,
-        {
-          id: categories.length + 1,
-          name: newCategory,
-          courseCount: 0,
-          status: 'active'
-        }
-      ]);
-      setNewCategory('');
-    }
-  };
-
-  const handleToggleCategory = (categoryId) => {
-    setCategories(categories.map(cat =>
-      cat.id === categoryId ? { ...cat, status: cat.status === 'active' ? 'inactive' : 'active' } : cat
-    ));
-  };
-
-  const handleAddPolicy = () => {
-    if (newPolicy.title.trim() && newPolicy.content.trim()) {
-      setPolicies([
-        ...policies,
-        {
-          id: policies.length + 1,
-          title: newPolicy.title,
-          lastUpdated: new Date().toISOString().split('T')[0],
-          status: 'draft'
-        }
-      ]);
-      setNewPolicy({ title: '', content: '' });
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userType');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('adminAuthenticated');
+  const loadAdminData = async () => {
+    setLoading(true)
     
-    window.location.href = '/';
-  };
+    // Load all users
+    const { data: usersData, error: usersError } = await adminService.getAllUsers()
+    if (!usersError && usersData) {
+      setUsers(usersData)
+    }
+
+    // Load analytics
+    const { data: analyticsData, error: analyticsError } = await adminService.getAnalytics()
+    if (!analyticsError && analyticsData) {
+      setAnalytics(analyticsData)
+    }
+    
+    setLoading(false)
+  }
+
+  const handleApproveTeacher = async (teacherId) => {
+    const { error } = await adminService.approveTeacher(teacherId)
+    if (!error) {
+      await loadAdminData()
+      alert('Teacher approved successfully!')
+    } else {
+      alert('Failed to approve teacher: ' + error.message)
+    }
+  }
+
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      const { error } = await adminService.deleteUser(userId)
+      if (!error) {
+        await loadAdminData()
+        alert('User deleted successfully!')
+      } else {
+        alert('Failed to delete user: ' + error.message)
+      }
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading admin dashboard...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="admin-dashboard">
+      {/* Sidebar */}
       <div className="admin-sidebar">
         <div className="sidebar-header">
           <h2>Admin Panel</h2>
-          <p>Welcome, Admin</p>
+          <p>Welcome, {user.profile.full_name || 'Admin'}</p>
         </div>
         <nav className="sidebar-nav">
           <button 
@@ -129,40 +78,18 @@ const AdminDashboard = () => {
             👥 User Management
           </button>
           <button 
-            className={`nav-btn ${activeTab === 'approvals' ? 'active' : ''}`}
-            onClick={() => setActiveTab('approvals')}
-          >
-            ✅ Teacher Approvals
-            {users.teachers.filter(t => t.status === 'pending').length > 0 && (
-              <span className="notification-badge">
-                {users.teachers.filter(t => t.status === 'pending').length}
-              </span>
-            )}
-          </button>
-          <button 
             className={`nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
             onClick={() => setActiveTab('analytics')}
           >
-            📊 Platform Analytics
-          </button>
-          <button 
-            className={`nav-btn ${activeTab === 'categories' ? 'active' : ''}`}
-            onClick={() => setActiveTab('categories')}
-          >
-            📚 Categories
-          </button>
-          <button 
-            className={`nav-btn ${activeTab === 'policies' ? 'active' : ''}`}
-            onClick={() => setActiveTab('policies')}
-          >
-            ⚖️ Policies
+            📊 Analytics
           </button>
         </nav>
-        <button className="logout-btn" onClick={handleLogout}>
+        <button className="logout-btn" onClick={onLogout}>
           🚪 Logout
         </button>
       </div>
 
+      {/* Main Content */}
       <div className="admin-main">
         {activeTab === 'users' && (
           <div className="tab-content">
@@ -170,86 +97,44 @@ const AdminDashboard = () => {
             
             <div className="user-sections">
               <div className="user-section">
-                <h3>Students ({users.students.length})</h3>
+                <h3>All Users ({users.length})</h3>
                 <div className="user-table">
                   <table>
                     <thead>
                       <tr>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Role</th>
                         <th>Status</th>
-                        <th>Join Date</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {users.students.map(student => (
-                        <tr key={student.id}>
-                          <td>{student.name}</td>
-                          <td>{student.email}</td>
+                      {users.map(user => (
+                        <tr key={user.id}>
+                          <td>{user.full_name || 'N/A'}</td>
+                          <td>{user.email}</td>
+                          <td>{user.role}</td>
                           <td>
-                            <span className={`status-badge ${student.status}`}>
-                              {student.status}
+                            <span className={`status-badge ${user.approved ? 'approved' : 'pending'}`}>
+                              {user.approved ? 'Approved' : 'Pending'}
                             </span>
                           </td>
-                          <td>{student.joinDate}</td>
                           <td>
-                            <button className="action-btn view">View</button>
-                            <button className="action-btn suspend">Suspend</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="user-section">
-                <h3>Teachers ({users.teachers.length})</h3>
-                <div className="user-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Department</th>
-                        <th>Status</th>
-                        <th>Join Date</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.teachers.map(teacher => (
-                        <tr key={teacher.id}>
-                          <td>{teacher.name}</td>
-                          <td>{teacher.email}</td>
-                          <td>{teacher.department}</td>
-                          <td>
-                            <span className={`status-badge ${teacher.status}`}>
-                              {teacher.status}
-                            </span>
-                          </td>
-                          <td>{teacher.joinDate}</td>
-                          <td>
-                            <button className="action-btn view">View</button>
-                            {teacher.status === 'pending' ? (
-                              <>
-                                <button 
-                                  className="action-btn approve"
-                                  onClick={() => handleApproveTeacher(teacher.id)}
-                                >
-                                  Approve
-                                </button>
-                                <button 
-                                  className="action-btn reject"
-                                  onClick={() => handleRejectTeacher(teacher.id)}
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            ) : (
-                              <button className="action-btn suspend">Suspend</button>
+                            {user.role === 'teacher' && !user.approved && (
+                              <button 
+                                className="action-btn approve"
+                                onClick={() => handleApproveTeacher(user.id)}
+                              >
+                                Approve
+                              </button>
                             )}
+                            <button 
+                              className="action-btn delete"
+                              onClick={() => handleDeleteUser(user.id)}
+                            >
+                              Delete
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -257,42 +142,6 @@ const AdminDashboard = () => {
                   </table>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'approvals' && (
-          <div className="tab-content">
-            <h2>Teacher Approvals</h2>
-            <div className="approvals-list">
-              {users.teachers.filter(t => t.status === 'pending').length > 0 ? (
-                users.teachers.filter(t => t.status === 'pending').map(teacher => (
-                  <div key={teacher.id} className="approval-card">
-                    <div className="approval-info">
-                      <h4>{teacher.name}</h4>
-                      <p>Email: {teacher.email}</p>
-                      <p>Department: {teacher.department}</p>
-                      <p>Applied: {teacher.joinDate}</p>
-                    </div>
-                    <div className="approval-actions">
-                      <button 
-                        className="approve-btn"
-                        onClick={() => handleApproveTeacher(teacher.id)}
-                      >
-                        ✅ Approve
-                      </button>
-                      <button 
-                        className="reject-btn"
-                        onClick={() => handleRejectTeacher(teacher.id)}
-                      >
-                        ❌ Reject
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="no-data">No pending approvals</p>
-              )}
             </div>
           </div>
         )}
@@ -304,152 +153,26 @@ const AdminDashboard = () => {
             <div className="analytics-cards">
               <div className="analytics-card">
                 <h3>Total Students</h3>
-                <p className="analytics-number">{analytics.totalStudents}</p>
+                <p className="analytics-number">{analytics.totalStudents || 0}</p>
               </div>
               <div className="analytics-card">
                 <h3>Total Teachers</h3>
-                <p className="analytics-number">{analytics.totalTeachers}</p>
+                <p className="analytics-number">{analytics.totalTeachers || 0}</p>
               </div>
               <div className="analytics-card">
-                <h3>Pending Approvals</h3>
-                <p className="analytics-number">{analytics.pendingApprovals}</p>
+                <h3>Total Courses</h3>
+                <p className="analytics-number">{analytics.totalCourses || 0}</p>
               </div>
               <div className="analytics-card">
-                <h3>Active Courses</h3>
-                <p className="analytics-number">{analytics.activeCourses}</p>
+                <h3>Total Enrollments</h3>
+                <p className="analytics-number">{analytics.totalEnrollments || 0}</p>
               </div>
-              <div className="analytics-card">
-                <h3>Monthly Active Users</h3>
-                <p className="analytics-number">{analytics.monthlyActiveUsers}</p>
-              </div>
-              <div className="analytics-card">
-                <h3>Platform Usage</h3>
-                <p className="analytics-number">{analytics.platformUsage}%</p>
-              </div>
-            </div>
-
-            <div className="analytics-chart">
-              <h3>Popular Categories</h3>
-              <div className="category-list">
-                {analytics.popularCategories.map(cat => (
-                  <div key={cat.name} className="category-item">
-                    <span>{cat.name}</span>
-                    <span className="category-count">{cat.count} courses</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'categories' && (
-          <div className="tab-content">
-            <h2>Manage Categories</h2>
-            
-            <div className="add-category">
-              <input
-                type="text"
-                placeholder="New category name"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-              />
-              <button onClick={handleAddCategory}>Add Category</button>
-            </div>
-
-            <div className="categories-list">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Category Name</th>
-                    <th>Courses</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categories.map(category => (
-                    <tr key={category.id}>
-                      <td>{category.name}</td>
-                      <td>{category.courseCount}</td>
-                      <td>
-                        <span className={`status-badge ${category.status}`}>
-                          {category.status}
-                        </span>
-                      </td>
-                      <td>
-                        <button 
-                          className={`action-btn ${category.status === 'active' ? 'suspend' : 'approve'}`}
-                          onClick={() => handleToggleCategory(category.id)}
-                        >
-                          {category.status === 'active' ? 'Deactivate' : 'Activate'}
-                        </button>
-                        <button className="action-btn edit">Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'policies' && (
-          <div className="tab-content">
-            <h2>Manage Policies</h2>
-            
-            <div className="add-policy">
-              <h3>Add New Policy</h3>
-              <input
-                type="text"
-                placeholder="Policy title"
-                value={newPolicy.title}
-                onChange={(e) => setNewPolicy({ ...newPolicy, title: e.target.value })}
-              />
-              <textarea
-                placeholder="Policy content"
-                value={newPolicy.content}
-                onChange={(e) => setNewPolicy({ ...newPolicy, content: e.target.value })}
-                rows="4"
-              />
-              <button onClick={handleAddPolicy}>Create Policy</button>
-            </div>
-
-            <div className="policies-list">
-              <h3>Existing Policies</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Last Updated</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {policies.map(policy => (
-                    <tr key={policy.id}>
-                      <td>{policy.title}</td>
-                      <td>{policy.lastUpdated}</td>
-                      <td>
-                        <span className={`status-badge ${policy.status}`}>
-                          {policy.status}
-                        </span>
-                      </td>
-                      <td>
-                        <button className="action-btn edit">Edit</button>
-                        <button className="action-btn publish">Publish</button>
-                        <button className="action-btn delete">Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AdminDashboard;
+export default AdminDashboard

@@ -1,169 +1,140 @@
-import React, { useState } from 'react';
-import AdminDashboard from './role/AdminDashboard';
-import TeacherDashboard from './role/TeacherDashboard';
-import StudentDashboard from './role/StudentDashboard';
-import './App.css';
+import React, { useState, useEffect } from 'react'
+import { authService } from './services/auth'
+import AdminDashboard from './role/AdminDashboard'
+import TeacherDashboard from './role/TeacherDashboard'
+import StudentDashboard from './role/StudentDashboard'
+import SignUp from './role/SignUp'
+import './App.css'
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authenticatedUser, setAuthenticatedUser] = useState(null);
-  const [userType, setUserType] = useState('student');
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authenticatedUser, setAuthenticatedUser] = useState(null)
+  const [userType, setUserType] = useState('student')
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false
-  });
-  const [message, setMessage] = useState('');
+  })
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [showSignUp, setShowSignUp] = useState(false)
 
-  const fixedCredentials = {
-    student: {
-      email: 'student@college.edu',
-      password: 'student123',
-      role: 'Student'
-    },
-    teacher: {
-      email: 'teacher@college.edu',
-      password: 'teacher123',
-      role: 'Teacher'
-    },
-    admin: {
-      email: 'admin@college.edu',
-      password: 'admin123',
-      role: 'Administrator'
+  // Check for existing session on load
+  useEffect(() => {
+    checkSession()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const checkSession = async () => {
+    const { data, error } = await authService.getSession()
+    if (error) {
+      console.error('Session check error:', error)
     }
-  };
+    if (data?.session) {
+      setIsAuthenticated(true)
+      setAuthenticatedUser({
+        type: data.profile.role,
+        role: data.profile.role,
+        email: data.profile.email,
+        profile: data.profile
+      })
+    }
+    setLoading(false)
+  }
 
   const handleRoleSelect = (role) => {
-    setUserType(role);
-    setMessage('');
-  };
+    setUserType(role)
+    setMessage('')
+  }
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type, checked } = e.target
     setFormData({
       ...formData,
       [name]: type === 'checkbox' ? checked : value
-    });
-    setMessage('');
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    const credentials = fixedCredentials[userType];
-    
-    if (formData.email === credentials.email && formData.password === credentials.password) {
-      setMessage(`✅ Login successful! Welcome ${credentials.role}.`);
-      
-      setIsAuthenticated(true);
-      setAuthenticatedUser({
-        type: userType,
-        role: credentials.role,
-        email: credentials.email
-      });
-
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('userType', userType);
-      localStorage.setItem('userRole', credentials.role);
-      localStorage.setItem('userEmail', credentials.email);
-      
-    } else {
-      setMessage(`❌ Invalid credentials for ${credentials.role}. Please try again.`);
-    }
-  };
-
-  const fillDemoCredentials = () => {
-    const credentials = fixedCredentials[userType];
-    setFormData({
-      ...formData,
-      email: credentials.email,
-      password: credentials.password
-    });
-  };
-
-  React.useEffect(() => {
-    const auth = localStorage.getItem('isAuthenticated');
-    if (auth === 'true') {
-      setIsAuthenticated(true);
-      setAuthenticatedUser({
-        type: localStorage.getItem('userType'),
-        role: localStorage.getItem('userRole'),
-        email: localStorage.getItem('userEmail')
-      });
-    }
-  }, []);
-
-if (isAuthenticated && authenticatedUser?.type === 'admin') {
-  return <AdminDashboard />;
-}
-
-if (isAuthenticated && authenticatedUser?.type === 'teacher') {
-  return <TeacherDashboard />;
-}
-
-if (isAuthenticated && authenticatedUser?.type === 'student') {
-  return <StudentDashboard />;
-}
-
-if (isAuthenticated && authenticatedUser?.type === 'student') {
-  return (
-    <div className="dashboard-container">
-      <h1>Student Dashboard</h1>
-      <p>Welcome, {authenticatedUser?.email}!</p>
-      <button 
-        onClick={() => {
-          localStorage.clear();
-          setIsAuthenticated(false);
-          setAuthenticatedUser(null);
-        }}
-        className="logout-btn"
-      >
-        Logout
-      </button>
-    </div>
-  );
-}
-
-  if (isAuthenticated) {
-    return (
-      <div className="dashboard-container">
-        <h1>{authenticatedUser?.role} Dashboard</h1>
-        <p>Welcome, {authenticatedUser?.email}!</p>
-        <button 
-          onClick={() => {
-            localStorage.clear();
-            setIsAuthenticated(false);
-            setAuthenticatedUser(null);
-          }}
-          className="logout-btn"
-        >
-          Logout
-        </button>
-      </div>
-    );
+    })
+    setMessage('')
   }
 
-  const getRoleColor = (role) => {
-    switch(role) {
-      case 'student': return '#667eea';
-      case 'teacher': return '#38a169';
-      case 'admin': return '#e53e3e';
-      default: return '#667eea';
-    }
-  };
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
 
+    const { data, error } = await authService.signIn(
+      formData.email,
+      formData.password
+    )
+
+    if (error) {
+      setMessage(`❌ Login failed: ${error.message}`)
+      setLoading(false)
+      return
+    }
+
+    if (data && data.profile.role === userType) {
+      setMessage(`✅ Login successful! Welcome ${data.profile.full_name}.`)
+      setIsAuthenticated(true)
+      setAuthenticatedUser({
+        type: data.profile.role,
+        role: data.profile.role,
+        email: data.profile.email,
+        profile: data.profile
+      })
+    } else if (data && data.profile.role !== userType) {
+      setMessage(`❌ This account is registered as ${data.profile.role}, not ${userType}. Please select the correct role.`)
+      setLoading(false)
+      return
+    }
+    setLoading(false)
+  }
+
+  const handleLogout = async () => {
+    await authService.signOut()
+    localStorage.clear()
+    setIsAuthenticated(false)
+    setAuthenticatedUser(null)
+  }
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  // If authenticated, show appropriate dashboard
+  if (isAuthenticated && authenticatedUser) {
+    switch (authenticatedUser.type) {
+      case 'admin':
+        return <AdminDashboard onLogout={handleLogout} user={authenticatedUser} />
+      case 'teacher':
+        return <TeacherDashboard onLogout={handleLogout} user={authenticatedUser} />
+      case 'student':
+        return <StudentDashboard onLogout={handleLogout} user={authenticatedUser} />
+      default:
+        return <div>Unknown user role</div>
+    }
+  }
+
+  // Show Sign Up page
+  if (showSignUp) {
+    return <SignUp onSwitchToLogin={() => setShowSignUp(false)} />
+  }
+
+  // Login page
   return (
     <div className="App">
       <div className="login-container">
         <div className="login-card">
           <h1 className="login-title">Welcome Back</h1>
           
-          
+          {/* Role Selection Buttons */}
           <div className="role-selector">
             <button
               className={`role-btn ${userType === 'student' ? 'active' : ''}`}
               onClick={() => handleRoleSelect('student')}
-              style={{ borderColor: userType === 'student' ? '#667eea' : '#e1e1e1' }}
             >
               <span className="role-icon">👨‍🎓</span>
               Student
@@ -171,7 +142,6 @@ if (isAuthenticated && authenticatedUser?.type === 'student') {
             <button
               className={`role-btn ${userType === 'teacher' ? 'active' : ''}`}
               onClick={() => handleRoleSelect('teacher')}
-              style={{ borderColor: userType === 'teacher' ? '#38a169' : '#e1e1e1' }}
             >
               <span className="role-icon">👨‍🏫</span>
               Teacher
@@ -179,13 +149,13 @@ if (isAuthenticated && authenticatedUser?.type === 'student') {
             <button
               className={`role-btn ${userType === 'admin' ? 'active' : ''}`}
               onClick={() => handleRoleSelect('admin')}
-              style={{ borderColor: userType === 'admin' ? '#e53e3e' : '#e1e1e1' }}
             >
               <span className="role-icon">👨‍💼</span>
               Admin
             </button>
           </div>
 
+          {/* Login Form */}
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
               <label htmlFor="email">Email</label>
@@ -223,11 +193,12 @@ if (isAuthenticated && authenticatedUser?.type === 'student') {
                 />
                 <span>Remember me</span>
               </label>
-              <a href="/forgot-password" className="forgot-password" onClick={(e) => e.preventDefault()}>
+              <button className="forgot-password" onClick={(e) => e.preventDefault()}>
                 Forgot Password?
-              </a>
+              </button>
             </div>
 
+            {/* Message Display */}
             {message && (
               <div className={`message ${message.includes('✅') ? 'success' : 'error'}`}>
                 {message}
@@ -237,25 +208,22 @@ if (isAuthenticated && authenticatedUser?.type === 'student') {
             <button 
               type="submit" 
               className="login-button"
-              style={{ 
-                background: userType === 'student' 
-                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                  : userType === 'teacher'
-                  ? 'linear-gradient(135deg, #38a169 0%, #2f855a 100%)'
-                  : 'linear-gradient(135deg, #e53e3e 0%, #c53030 100%)'
-              }}
+              disabled={loading}
             >
-              Login as {fixedCredentials[userType].role}
+              {loading ? 'Logging in...' : `Login as ${userType.charAt(0).toUpperCase() + userType.slice(1)}`}
             </button>
           </form>
 
           <div className="signup-link">
-            Don't have an account? <a href="/signup" onClick={(e) => e.preventDefault()}>Sign up</a>
+            Don't have an account?{' '}
+            <button className="link-button" onClick={() => setShowSignUp(true)}>
+              Sign up
+            </button>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-export default App;
+export default App
