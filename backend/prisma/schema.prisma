@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int     @id @default(autoincrement())
+  email     String  @unique
+  name      String
+  password  String
+  role      String  @default("student") // admin, instructor, student
+  createdAt DateTime @default(now())
+
+  // Relations
+  coursesCreated     Course[] @relation("InstructorCourses")
+  enrollments        Enrollment[]
+  progress           Progress[]
+  quizAttempts       QuizAttempt[]
+  messagesSent       Message[] @relation("SenderMessages")
+  messagesReceived   Message[] @relation("ReceiverMessages")
+}
+
+model Course {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String
+  price       Float   @default(0)
+  category    String
+  published   Boolean @default(false)
+  level       String  @default("beginner") // beginner, intermediate, advanced
+  weeks       Int     @default(4)
+  instructorId Int
+  createdAt   DateTime @default(now())
+
+  instructor  User @relation("InstructorCourses", fields: [instructorId], references: [id])
+  lectures    Lecture[]
+  enrollments Enrollment[]
+  quizzes     Quiz[]
+
+  @@index([instructorId])
+}
+
+model Lecture {
+  id          Int     @id @default(autoincrement())
+  title       String
+  description String?
+  videoUrl    String?
+  theory      String? // Theoretical content
+  duration    Int     @default(0) // in minutes
+  week        Int     @default(1)
+  hasQuiz     Boolean @default(false)
+  courseId    Int
+  orderIdx    Int     @default(0)
+
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progress  Progress[]
+
+  @@index([courseId])
+}
+
+model Enrollment {
+  id                    Int     @id @default(autoincrement())
+  studentId             Int
+  courseId              Int
+  paymentStatus         String  @default("pending") // pending, paid, free
+  razorpayOrderId       String?
+  razorpayPaymentId     String?
+  enrolledAt            DateTime @default(now())
+
+  student   User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+}
+
+model Progress {
+  id            Int     @id @default(autoincrement())
+  studentId     Int
+  lectureId     Int
+  lastTimestamp Int     @default(0)
+  completed     Boolean @default(false)
+  updatedAt     DateTime @updatedAt
+
+  student   User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lecture   Lecture @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lectureId])
+  @@index([lectureId])
+}
+
+model Quiz {
+  id       Int     @id @default(autoincrement())
+  title    String
+  courseId Int
+
+  course       Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  questions    QuizQuestion[]
+  attempts     QuizAttempt[]
+
+  @@index([courseId])
+}
+
+model QuizQuestion {
+  id            Int     @id @default(autoincrement())
+  question      String
+  options       String  // JSON array as string
+  correctAnswer String
+  quizId        Int
+
+  quiz     Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
+}
+
+model QuizAttempt {
+  id        Int     @id @default(autoincrement())
+  quizId    Int
+  studentId Int
+  score     Float
+  attemptedAt DateTime @default(now())
+
+  quiz      Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student   User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([quizId, studentId])
+}
+
+model Message {
+  id          Int     @id @default(autoincrement())
+  senderId    Int
+  receiverId  Int
+  subject     String
+  content     String
+  isRead      Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sender      User @relation("SenderMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User @relation("ReceiverMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+}

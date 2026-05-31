@@ -1,453 +1,240 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import * as apiClient from '../api/apiClient';
+import AdminAnalytics from './AdminAnalytics';
+import { FiUsers, FiBookOpen, FiBarChart2, FiLogOut, FiGrid, FiChevronRight, FiMenu, FiX } from 'react-icons/fi';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('users');
-  const [users, setUsers] = useState({
-    students: [
-      { id: 1, name: 'John Doe', email: 'john@student.edu', status: 'active', joinDate: '2024-01-15' },
-      { id: 2, name: 'Jane Smith', email: 'jane@student.edu', status: 'active', joinDate: '2024-02-20' },
-      { id: 3, name: 'Bob Johnson', email: 'bob@student.edu', status: 'inactive', joinDate: '2024-01-10' },
-    ],
-    teachers: [
-      { id: 1, name: 'Dr. Sarah Wilson', email: 'sarah@teacher.edu', status: 'approved', department: 'Computer Science', joinDate: '2023-08-15' },
-      { id: 2, name: 'Prof. Michael Brown', email: 'michael@teacher.edu', status: 'pending', department: 'Mathematics', joinDate: '2024-03-01' },
-      { id: 3, name: 'Dr. Emily Davis', email: 'emily@teacher.edu', status: 'approved', department: 'Physics', joinDate: '2023-09-10' },
-      { id: 4, name: 'Prof. David Lee', email: 'david@teacher.edu', status: 'pending', department: 'Chemistry', joinDate: '2024-02-28' },
-    ]
+  const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('stats');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalCourses: 0,
+    totalEnrollments: 0,
+    instructors: 0,
+    students: 0,
+    completedEnrollments: 0,
+    completionRate: 0
   });
+  const [users, setUsers] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [analytics, setAnalytics] = useState({
-    totalStudents: 1250,
-    totalTeachers: 45,
-    pendingApprovals: 3,
-    activeCourses: 78,
-    monthlyActiveUsers: 890,
-    platformUsage: 78,
-    popularCategories: [
-      { name: 'Computer Science', count: 45 },
-      { name: 'Mathematics', count: 32 },
-      { name: 'Physics', count: 28 },
-      { name: 'Chemistry', count: 25 },
-      { name: 'Literature', count: 20 },
-    ]
-  });
+  useEffect(() => {
+    fetchAdminData();
+  }, [activeTab]);
 
-  const [categories, setCategories] = useState([
-    { id: 1, name: 'Computer Science', courseCount: 45, status: 'active' },
-    { id: 2, name: 'Mathematics', courseCount: 32, status: 'active' },
-    { id: 3, name: 'Physics', courseCount: 28, status: 'active' },
-    { id: 4, name: 'Chemistry', courseCount: 25, status: 'active' },
-    { id: 5, name: 'Literature', courseCount: 20, status: 'inactive' },
-    { id: 6, name: 'History', courseCount: 15, status: 'active' },
-  ]);
-
-  const [policies, setPolicies] = useState([
-    { id: 1, title: 'User Agreement', lastUpdated: '2024-01-15', status: 'active' },
-    { id: 2, title: 'Privacy Policy', lastUpdated: '2024-02-01', status: 'active' },
-    { id: 3, title: 'Teacher Guidelines', lastUpdated: '2024-02-20', status: 'active' },
-    { id: 4, title: 'Course Creation Policy', lastUpdated: '2024-01-10', status: 'draft' },
-  ]);
-
-  const [newCategory, setNewCategory] = useState('');
-  const [newPolicy, setNewPolicy] = useState({ title: '', content: '' });
-
-  const handleApproveTeacher = (teacherId) => {
-    setUsers(prev => ({
-      ...prev,
-      teachers: prev.teachers.map(teacher =>
-        teacher.id === teacherId ? { ...teacher, status: 'approved' } : teacher
-      )
-    }));
-  };
-
-  const handleRejectTeacher = (teacherId) => {
-    setUsers(prev => ({
-      ...prev,
-      teachers: prev.teachers.filter(teacher => teacher.id !== teacherId)
-    }));
-  };
-
-  const handleAddCategory = () => {
-    if (newCategory.trim()) {
-      setCategories([
-        ...categories,
-        {
-          id: categories.length + 1,
-          name: newCategory,
-          courseCount: 0,
-          status: 'active'
-        }
-      ]);
-      setNewCategory('');
+  const fetchAdminData = async () => {
+    if (activeTab === 'analytics') {
+      setLoading(false);
+      return;
     }
-  };
-
-  const handleToggleCategory = (categoryId) => {
-    setCategories(categories.map(cat =>
-      cat.id === categoryId ? { ...cat, status: cat.status === 'active' ? 'inactive' : 'active' } : cat
-    ));
-  };
-
-  const handleAddPolicy = () => {
-    if (newPolicy.title.trim() && newPolicy.content.trim()) {
-      setPolicies([
-        ...policies,
-        {
-          id: policies.length + 1,
-          title: newPolicy.title,
-          lastUpdated: new Date().toISOString().split('T')[0],
-          status: 'draft'
-        }
-      ]);
-      setNewPolicy({ title: '', content: '' });
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('userType');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('adminAuthenticated');
     
-    window.location.href = '/';
+    setLoading(true);
+    try {
+      if (activeTab === 'stats') {
+        const response = await apiClient.adminAPI.getStats();
+        setStats(response.data);
+      } else if (activeTab === 'users') {
+        const response = await apiClient.adminAPI.getAllUsers();
+        setUsers(response.data);
+      } else if (activeTab === 'courses') {
+        const response = await apiClient.adminAPI.getAllCourses();
+        setCourses(response.data);
+      }
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch data');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const menuItems = [
+    { id: 'stats', label: 'Overview', icon: FiGrid },
+    { id: 'analytics', label: 'Analytics', icon: FiBarChart2 },
+    { id: 'users', label: 'Users', icon: FiUsers },
+    { id: 'courses', label: 'Courses', icon: FiBookOpen }
+  ];
+
+  const renderContent = () => {
+    if (loading && activeTab !== 'analytics') {
+      return <div className="loading"><div className="spinner"></div> Loading...</div>;
+    }
+    if (error) {
+      return <div className="error-message">{error}</div>;
+    }
+
+    switch (activeTab) {
+      case 'stats':
+        return (
+          <div className="content-section">
+            <h2>System Overview</h2>
+            <div className="stats-grid">
+              <div className="stat-card gradient-1">
+                <div className="stat-icon">👥</div>
+                <div className="stat-content">
+                  <p className="stat-label">Total Users</p>
+                  <p className="stat-value">{stats.totalUsers}</p>
+                  <small>{stats.students} Students • {stats.instructors} Instructors</small>
+                </div>
+              </div>
+              <div className="stat-card gradient-2">
+                <div className="stat-icon">📚</div>
+                <div className="stat-content">
+                  <p className="stat-label">Total Courses</p>
+                  <p className="stat-value">{stats.totalCourses}</p>
+                  <small>Active courses</small>
+                </div>
+              </div>
+              <div className="stat-card gradient-3">
+                <div className="stat-icon">📊</div>
+                <div className="stat-content">
+                  <p className="stat-label">Total Enrollments</p>
+                  <p className="stat-value">{stats.totalEnrollments}</p>
+                  <small>{stats.completedEnrollments} completed</small>
+                </div>
+              </div>
+              <div className="stat-card gradient-4">
+                <div className="stat-icon">🎯</div>
+                <div className="stat-content">
+                  <p className="stat-label">Completion Rate</p>
+                  <p className="stat-value">{stats.completionRate}%</p>
+                  <small>Overall progress</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      case 'analytics':
+        return <AdminAnalytics />;
+      case 'users':
+        return (
+          <div className="content-section">
+            <h2>User Management</h2>
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Joined Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users && users.length > 0 ? (
+                    users.map((user) => (
+                      <tr key={user.id}>
+                        <td><strong>{user.name}</strong></td>
+                        <td>{user.email}</td>
+                        <td><span className={`role-badge role-${user.role}`}>{user.role}</span></td>
+                        <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan="4" className="empty-state">No users found</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      case 'courses':
+        return (
+          <div className="content-section">
+            <h2>Course Management</h2>
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Course Title</th>
+                    <th>Instructor</th>
+                    <th>Category</th>
+                    <th>Enrollments</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {courses && courses.length > 0 ? (
+                    courses.map((course) => (
+                      <tr key={course.id}>
+                        <td><strong>{course.title}</strong></td>
+                        <td>{course.instructor?.name || 'N/A'}</td>
+                        <td>{course.category}</td>
+                        <td><span className="enrollment-badge">{course.enrollments?.length || 0}</span></td>
+                        <td><span className={`status-badge status-${course.published ? 'published' : 'draft'}`}>
+                          {course.published ? 'Published' : 'Draft'}
+                        </span></td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr><td colSpan="5" className="empty-state">No courses found</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
-    <div className="admin-dashboard">
-      <div className="admin-sidebar">
-        <div className="sidebar-header">
-          <h2>Admin Panel</h2>
-          <p>Welcome, Admin</p>
+    <div className="admin-dashboard-wrapper">
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-brand">
+          <div className="brand-logo">LS</div>
+          <div className="brand-text">
+            <h3>LearnSphere</h3>
+            <p>Admin</p>
+          </div>
         </div>
-        <nav className="sidebar-nav">
-          <button 
-            className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`}
-            onClick={() => setActiveTab('users')}
-          >
-            👥 User Management
-          </button>
-          <button 
-            className={`nav-btn ${activeTab === 'approvals' ? 'active' : ''}`}
-            onClick={() => setActiveTab('approvals')}
-          >
-            ✅ Teacher Approvals
-            {users.teachers.filter(t => t.status === 'pending').length > 0 && (
-              <span className="notification-badge">
-                {users.teachers.filter(t => t.status === 'pending').length}
-              </span>
-            )}
-          </button>
-          <button 
-            className={`nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
-          >
-            📊 Platform Analytics
-          </button>
-          <button 
-            className={`nav-btn ${activeTab === 'categories' ? 'active' : ''}`}
-            onClick={() => setActiveTab('categories')}
-          >
-            📚 Categories
-          </button>
-          <button 
-            className={`nav-btn ${activeTab === 'policies' ? 'active' : ''}`}
-            onClick={() => setActiveTab('policies')}
-          >
-            ⚖️ Policies
-          </button>
+
+        <nav className="sidebar-menu">
+          {menuItems.map(item => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                className={`menu-item ${activeTab === item.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(item.id)}
+                title={item.label}
+              >
+                <Icon className="menu-icon" size={20} />
+                <span className="menu-label">{item.label}</span>
+                {activeTab === item.id && <FiChevronRight className="menu-indicator" size={18} />}
+              </button>
+            );
+          })}
         </nav>
-        <button className="logout-btn" onClick={handleLogout}>
-          🚪 Logout
+
+        <button className="logout-btn" onClick={logout} title="Logout">
+          <FiLogOut size={18} />
+          <span>Logout</span>
         </button>
-      </div>
+      </aside>
 
-      <div className="admin-main">
-        {activeTab === 'users' && (
-          <div className="tab-content">
-            <h2>User Management</h2>
-            
-            <div className="user-sections">
-              <div className="user-section">
-                <h3>Students ({users.students.length})</h3>
-                <div className="user-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Status</th>
-                        <th>Join Date</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.students.map(student => (
-                        <tr key={student.id}>
-                          <td>{student.name}</td>
-                          <td>{student.email}</td>
-                          <td>
-                            <span className={`status-badge ${student.status}`}>
-                              {student.status}
-                            </span>
-                          </td>
-                          <td>{student.joinDate}</td>
-                          <td>
-                            <button className="action-btn view">View</button>
-                            <button className="action-btn suspend">Suspend</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="user-section">
-                <h3>Teachers ({users.teachers.length})</h3>
-                <div className="user-table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Department</th>
-                        <th>Status</th>
-                        <th>Join Date</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.teachers.map(teacher => (
-                        <tr key={teacher.id}>
-                          <td>{teacher.name}</td>
-                          <td>{teacher.email}</td>
-                          <td>{teacher.department}</td>
-                          <td>
-                            <span className={`status-badge ${teacher.status}`}>
-                              {teacher.status}
-                            </span>
-                          </td>
-                          <td>{teacher.joinDate}</td>
-                          <td>
-                            <button className="action-btn view">View</button>
-                            {teacher.status === 'pending' ? (
-                              <>
-                                <button 
-                                  className="action-btn approve"
-                                  onClick={() => handleApproveTeacher(teacher.id)}
-                                >
-                                  Approve
-                                </button>
-                                <button 
-                                  className="action-btn reject"
-                                  onClick={() => handleRejectTeacher(teacher.id)}
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            ) : (
-                              <button className="action-btn suspend">Suspend</button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+      <main className="admin-main">
+        <div className="main-header">
+          <div className="header-content">
+            <h1>Dashboard</h1>
+            <p>Welcome back, <strong>{user?.name || 'Admin'}</strong>! 👋</p>
           </div>
-        )}
+          <button className="mobile-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            {sidebarOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+          </button>
+        </div>
 
-        {activeTab === 'approvals' && (
-          <div className="tab-content">
-            <h2>Teacher Approvals</h2>
-            <div className="approvals-list">
-              {users.teachers.filter(t => t.status === 'pending').length > 0 ? (
-                users.teachers.filter(t => t.status === 'pending').map(teacher => (
-                  <div key={teacher.id} className="approval-card">
-                    <div className="approval-info">
-                      <h4>{teacher.name}</h4>
-                      <p>Email: {teacher.email}</p>
-                      <p>Department: {teacher.department}</p>
-                      <p>Applied: {teacher.joinDate}</p>
-                    </div>
-                    <div className="approval-actions">
-                      <button 
-                        className="approve-btn"
-                        onClick={() => handleApproveTeacher(teacher.id)}
-                      >
-                        ✅ Approve
-                      </button>
-                      <button 
-                        className="reject-btn"
-                        onClick={() => handleRejectTeacher(teacher.id)}
-                      >
-                        ❌ Reject
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="no-data">No pending approvals</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'analytics' && (
-          <div className="tab-content">
-            <h2>Platform Analytics</h2>
-            
-            <div className="analytics-cards">
-              <div className="analytics-card">
-                <h3>Total Students</h3>
-                <p className="analytics-number">{analytics.totalStudents}</p>
-              </div>
-              <div className="analytics-card">
-                <h3>Total Teachers</h3>
-                <p className="analytics-number">{analytics.totalTeachers}</p>
-              </div>
-              <div className="analytics-card">
-                <h3>Pending Approvals</h3>
-                <p className="analytics-number">{analytics.pendingApprovals}</p>
-              </div>
-              <div className="analytics-card">
-                <h3>Active Courses</h3>
-                <p className="analytics-number">{analytics.activeCourses}</p>
-              </div>
-              <div className="analytics-card">
-                <h3>Monthly Active Users</h3>
-                <p className="analytics-number">{analytics.monthlyActiveUsers}</p>
-              </div>
-              <div className="analytics-card">
-                <h3>Platform Usage</h3>
-                <p className="analytics-number">{analytics.platformUsage}%</p>
-              </div>
-            </div>
-
-            <div className="analytics-chart">
-              <h3>Popular Categories</h3>
-              <div className="category-list">
-                {analytics.popularCategories.map(cat => (
-                  <div key={cat.name} className="category-item">
-                    <span>{cat.name}</span>
-                    <span className="category-count">{cat.count} courses</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'categories' && (
-          <div className="tab-content">
-            <h2>Manage Categories</h2>
-            
-            <div className="add-category">
-              <input
-                type="text"
-                placeholder="New category name"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-              />
-              <button onClick={handleAddCategory}>Add Category</button>
-            </div>
-
-            <div className="categories-list">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Category Name</th>
-                    <th>Courses</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categories.map(category => (
-                    <tr key={category.id}>
-                      <td>{category.name}</td>
-                      <td>{category.courseCount}</td>
-                      <td>
-                        <span className={`status-badge ${category.status}`}>
-                          {category.status}
-                        </span>
-                      </td>
-                      <td>
-                        <button 
-                          className={`action-btn ${category.status === 'active' ? 'suspend' : 'approve'}`}
-                          onClick={() => handleToggleCategory(category.id)}
-                        >
-                          {category.status === 'active' ? 'Deactivate' : 'Activate'}
-                        </button>
-                        <button className="action-btn edit">Edit</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'policies' && (
-          <div className="tab-content">
-            <h2>Manage Policies</h2>
-            
-            <div className="add-policy">
-              <h3>Add New Policy</h3>
-              <input
-                type="text"
-                placeholder="Policy title"
-                value={newPolicy.title}
-                onChange={(e) => setNewPolicy({ ...newPolicy, title: e.target.value })}
-              />
-              <textarea
-                placeholder="Policy content"
-                value={newPolicy.content}
-                onChange={(e) => setNewPolicy({ ...newPolicy, content: e.target.value })}
-                rows="4"
-              />
-              <button onClick={handleAddPolicy}>Create Policy</button>
-            </div>
-
-            <div className="policies-list">
-              <h3>Existing Policies</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Last Updated</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {policies.map(policy => (
-                    <tr key={policy.id}>
-                      <td>{policy.title}</td>
-                      <td>{policy.lastUpdated}</td>
-                      <td>
-                        <span className={`status-badge ${policy.status}`}>
-                          {policy.status}
-                        </span>
-                      </td>
-                      <td>
-                        <button className="action-btn edit">Edit</button>
-                        <button className="action-btn publish">Publish</button>
-                        <button className="action-btn delete">Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
+        <div className="main-content">
+          {renderContent()}
+        </div>
+      </main>
     </div>
   );
 };
