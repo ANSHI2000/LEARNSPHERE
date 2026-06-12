@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import * as apiClient from '../api/apiClient';
+import DashboardHeader from '../components/DashboardHeader';
+import StatCard from '../components/StatCard';
+import { calculateCourseRevenue, formatCurrency } from '../utils/formatters';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -37,9 +40,7 @@ const AdminDashboard = () => {
       // Calculate stats manually from available data
       const totalCourses = courses.length;
       const totalEnrollments = courses.reduce((sum, c) => sum + (c.enrollments?.length || 0), 0);
-      const totalRevenue = courses.reduce((sum, c) => 
-        sum + (c.price || 0) * (c.enrollments?.filter(e => e.paymentStatus === 'paid').length || 0), 0
-      );
+      const totalRevenue = courses.reduce((sum, c) => sum + calculateCourseRevenue(c), 0);
 
       setStats({
         totalCourses,
@@ -50,7 +51,7 @@ const AdminDashboard = () => {
         instructorUsers: 1,
         adminUsers: 1,
         paidEnrollments: courses.reduce((sum, c) => 
-          sum + (c.enrollments?.filter(e => e.paymentStatus === 'paid').length || 0), 0
+          sum + (c.enrollments?.filter((e) => e.paymentStatus === 'paid').length || 0), 0
         )
       });
       setError(null);
@@ -62,26 +63,9 @@ const AdminDashboard = () => {
     }
   };
 
-  const StatCard = ({ title, value, icon, color }) => (
-    <div className={`stat-card ${color}`}>
-      <div className="stat-icon">{icon}</div>
-      <div className="stat-content">
-        <div className="stat-value">{value}</div>
-        <div className="stat-title">{title}</div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="admin-dashboard">
-      {/* Header */}
-      <div className="dashboard-header">
-        <div>
-          <h1>Admin Dashboard</h1>
-          <p>Welcome, {user?.name}! System Overview</p>
-        </div>
-        <button className="logout-btn" onClick={logout}>Logout</button>
-      </div>
+      <DashboardHeader title="Admin Dashboard" userName={`${user?.name}! System Overview`} onLogout={logout} />
 
       {/* Tabs */}
       <div className="dashboard-tabs">
@@ -133,7 +117,7 @@ const AdminDashboard = () => {
             />
             <StatCard
               title="Total Revenue"
-              value={`₹${stats.totalRevenue}`}
+              value={formatCurrency(stats.totalRevenue)}
               icon="💰"
               color="orange"
             />
@@ -251,7 +235,7 @@ const AdminDashboard = () => {
               stats.courses
                 .filter(c => c.price > 0)
                 .map((course) => {
-                  const courseRevenue = (course.price || 0) * (course.enrollments?.filter(e => e.paymentStatus === 'paid').length || 0);
+                  const courseRevenue = calculateCourseRevenue(course);
                   return (
                     <div key={course.id} className="revenue-item">
                       <div className="revenue-info">

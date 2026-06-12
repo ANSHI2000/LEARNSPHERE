@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import * as apiClient from '../api/apiClient';
 import Messaging from './Messaging';
+import DashboardHeader from '../components/DashboardHeader';
+import { calculateCourseRevenue, formatCurrency } from '../utils/formatters';
 import './TeacherDashboard.css';
 
 const TeacherDashboard = () => {
@@ -102,13 +104,7 @@ const TeacherDashboard = () => {
 
   return (
     <div className="teacher-dashboard">
-      <div className="dashboard-header">
-        <div>
-          <h1>Instructor Dashboard</h1>
-          <p>Welcome, {user?.name}!</p>
-        </div>
-        <button className="logout-btn" onClick={logout}>Logout</button>
-      </div>
+      <DashboardHeader title="Instructor Dashboard" userName={user?.name} onLogout={logout} />
 
       {/* Stats Cards */}
       <div className="stats-container">
@@ -121,7 +117,7 @@ const TeacherDashboard = () => {
           <p>Total Students</p>
         </div>
         <div className="stat-card">
-          <h3>₹{courses.reduce((sum, c) => sum + (c.price || 0) * (c.enrollments?.filter(e => e.paymentStatus === 'paid').length || 0), 0)}</h3>
+          <h3>{formatCurrency(courses.reduce((sum, c) => sum + calculateCourseRevenue(c), 0))}</h3>
           <p>Revenue</p>
         </div>
       </div>

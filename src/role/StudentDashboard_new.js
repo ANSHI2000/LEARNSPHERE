@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import * as apiClient from '../api/apiClient';
 import Messaging from './Messaging';
+import DashboardHeader from '../components/DashboardHeader';
+import { getPlayableVideoUrl } from '../utils/formatters';
 import './StudentDashboard.css';
 
 const StudentDashboard = () => {
@@ -171,46 +173,9 @@ const StudentDashboard = () => {
     }
   };
 
-  const getPlayableVideoUrl = (value) => {
-    const raw = (value || '').trim();
-    if (!raw) return '';
-
-    let normalized = raw;
-
-    if (raw.startsWith('?v=')) {
-      normalized = `https://www.youtube.com/watch${raw}`;
-    } else if (/^[A-Za-z0-9_-]{11}$/.test(raw)) {
-      normalized = `https://www.youtube.com/watch?v=${raw}`;
-    } else if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
-      normalized = `https://${raw.replace(/^\/+/, '')}`;
-    }
-
-    try {
-      const parsed = new URL(normalized);
-
-      if (parsed.hostname.includes('youtu.be')) {
-        const videoId = parsed.pathname.replace('/', '').trim();
-        if (videoId) {
-          return `https://www.youtube.com/watch?v=${videoId}`;
-        }
-      }
-
-      return parsed.toString();
-    } catch (_e) {
-      return '';
-    }
-  };
-
   return (
     <div className="student-dashboard">
-      {/* Header */}
-      <div className="dashboard-header">
-        <div>
-          <h1>Student Dashboard</h1>
-          <p>Welcome, {user?.name}!</p>
-        </div>
-        <button className="logout-btn" onClick={logout}>Logout</button>
-      </div>
+      <DashboardHeader title="Student Dashboard" userName={user?.name} onLogout={logout} />
 
       {/* Tabs */}
       <div className="dashboard-tabs">

@@ -1,74 +1,50 @@
 import { supabase } from './supabase'
+import { serviceQuery, serviceCommand } from './serviceHelper'
 
 export const lectureService = {
-  // Get lectures for a course
   async getCourseLectures(courseId) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('lectures')
         .select('*')
         .eq('course_id', courseId)
         .order('order_index', { ascending: true })
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Add lecture (teacher only)
   async addLecture(lectureData) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('lectures')
         .insert([lectureData])
         .select()
         .single()
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Update lecture (teacher only)
   async updateLecture(lectureId, updates) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('lectures')
         .update(updates)
         .eq('id', lectureId)
         .select()
         .single()
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Delete lecture (teacher only)
   async deleteLecture(lectureId) {
-    try {
-      const { error } = await supabase
+    return serviceCommand((supabase) =>
+      supabase
         .from('lectures')
         .delete()
         .eq('id', lectureId)
-
-      if (error) throw error
-      return { error: null }
-    } catch (error) {
-      return { error }
-    }
+    )
   },
 
-  // Track lecture progress
   async trackProgress(studentId, lectureId, completed, lastPosition = null) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('lecture_progress')
         .upsert(
           {
@@ -82,18 +58,11 @@ export const lectureService = {
         )
         .select()
         .single()
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Get lecture progress for student in a course
   async getLectureProgress(studentId, courseId) {
     try {
-      // First get all lectures in the course
       const { data: lectures, error: lecturesError } = await supabase
         .from('lectures')
         .select('id')
@@ -107,7 +76,6 @@ export const lectureService = {
         return { data: [], error: null }
       }
 
-      // Then get progress for these lectures
       const { data, error } = await supabase
         .from('lecture_progress')
         .select(`
@@ -124,10 +92,8 @@ export const lectureService = {
     }
   },
 
-  // Calculate course progress based on completed lectures
   async calculateCourseProgress(studentId, courseId) {
     try {
-      // Get all lectures in course
       const { data: lectures, error: lecturesError } = await supabase
         .from('lectures')
         .select('id')
@@ -139,7 +105,6 @@ export const lectureService = {
         return { progress: 0, error: null }
       }
 
-      // Get completed lectures
       const { data: completedLectures, error: progressError } = await supabase
         .from('lecture_progress')
         .select('lecture_id')

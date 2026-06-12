@@ -1,10 +1,9 @@
-import { supabase } from './supabase'
+import { serviceQuery } from './serviceHelper'
 
 export const enrollmentService = {
-  // Enroll student in course
   async enrollStudent(studentId, courseId) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('enrollments')
         .insert([
           {
@@ -15,18 +14,12 @@ export const enrollmentService = {
         ])
         .select()
         .single()
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Get student's enrolled courses
   async getStudentCourses(studentId) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('enrollments')
         .select(`
           *,
@@ -38,35 +31,23 @@ export const enrollmentService = {
         `)
         .eq('student_id', studentId)
         .order('enrolled_at', { ascending: false })
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Update course progress
   async updateProgress(enrollmentId, progress) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('enrollments')
         .update({ progress })
         .eq('id', enrollmentId)
         .select()
         .single()
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Check if student is enrolled
   async isEnrolled(studentId, courseId) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (await import('./supabase')).supabase
         .from('enrollments')
         .select('id')
         .eq('student_id', studentId)

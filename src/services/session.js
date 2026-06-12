@@ -1,43 +1,31 @@
 import { supabase } from './supabase'
+import { serviceQuery } from './serviceHelper'
 
 export const sessionService = {
-  // Get upcoming sessions for a course
   async getCourseSessions(courseId) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('live_sessions')
         .select('*')
         .eq('course_id', courseId)
         .gte('scheduled_at', new Date().toISOString())
         .order('scheduled_at', { ascending: true })
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Schedule session (teacher only)
   async scheduleSession(sessionData) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('live_sessions')
         .insert([sessionData])
         .select()
         .single()
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Mark attendance
   async markAttendance(studentId, sessionId) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('session_attendance')
         .upsert(
           {
@@ -50,18 +38,11 @@ export const sessionService = {
         )
         .select()
         .single()
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Get student's upcoming sessions
   async getStudentSessions(studentId) {
     try {
-      // Get enrolled courses
       const { data: enrollments, error: enrollError } = await supabase
         .from('enrollments')
         .select('course_id')
@@ -75,7 +56,6 @@ export const sessionService = {
         return { data: [], error: null }
       }
 
-      // Get sessions from enrolled courses
       const { data, error } = await supabase
         .from('live_sessions')
         .select(`
