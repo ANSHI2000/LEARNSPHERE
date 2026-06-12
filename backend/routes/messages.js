@@ -1,36 +1,24 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Middleware to verify user is authenticated (optional for now - can be improved)
-const authenticateToken = (req, res, next) => {
-  // For now, we'll skip strict authentication to allow API testing
-  // In production, implement proper JWT validation
-  next();
-};
-
 // Send a message
-router.post('/send', authenticateToken, async (req, res) => {
+router.post('/send', authMiddleware, async (req, res) => {
   try {
-    const { senderId, receiverId, subject, content } = req.body;
+    const { receiverId, subject, content } = req.body;
+    const senderId = req.user.userId;
 
-    if (!senderId || !receiverId || !subject || !content) {
+    if (!receiverId || !subject || !content) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const parsedSenderId = parseInt(senderId);
     const parsedReceiverId = parseInt(receiverId);
 
-    if (isNaN(parsedSenderId) || isNaN(parsedReceiverId)) {
-      return res.status(400).json({ error: 'Invalid sender or receiver ID' });
-    }
-
-    // Verify sender exists
-    const sender = await prisma.user.findUnique({ where: { id: parsedSenderId } });
-    if (!sender) {
-      return res.status(404).json({ error: 'Sender not found' });
+    if (isNaN(parsedReceiverId)) {
+      return res.status(400).json({ error: 'Invalid receiver ID' });
     }
 
     // Verify receiver exists
@@ -42,7 +30,7 @@ router.post('/send', authenticateToken, async (req, res) => {
     // Create message
     const message = await prisma.message.create({
       data: {
-        senderId: parsedSenderId,
+        senderId,
         receiverId: parsedReceiverId,
         subject,
         content,
@@ -59,19 +47,23 @@ router.post('/send', authenticateToken, async (req, res) => {
       notification: `Message sent to ${receiver.name}`,
     });
   } catch (error) {
-    console.error('Error sending message:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error sending message:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Get inbox (received messages)
-router.get('/inbox/:userId', authenticateToken, async (req, res) => {
+router.get('/inbox/:userId', authMiddleware, async (req, res) => {
   try {
-    const { userId } = req.params;
-    const parsedUserId = parseInt(userId);
+    const parsedUserId = parseInt(req.params.userId);
 
     if (isNaN(parsedUserId)) {
       return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    // Users can only access their own inbox
+    if (parsedUserId !== req.user.userId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const messages = await prisma.message.findMany({
@@ -93,19 +85,23 @@ router.get('/inbox/:userId', authenticateToken, async (req, res) => {
       unreadCount,
     });
   } catch (error) {
-    console.error('Error fetching inbox:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching inbox:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Get sent messages
-router.get('/sent/:userId', authenticateToken, async (req, res) => {
+router.get('/sent/:userId', authMiddleware, async (req, res) => {
   try {
-    const { userId } = req.params;
-    const parsedUserId = parseInt(userId);
+    const parsedUserId = parseInt(req.params.userId);
 
     if (isNaN(parsedUserId)) {
       return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    // Users can only access their own sent messages
+    if (parsedUserId !== req.user.userId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const messages = await prisma.message.findMany({
@@ -121,20 +117,24 @@ router.get('/sent/:userId', authenticateToken, async (req, res) => {
       messages,
     });
   } catch (error) {
-    console.error('Error fetching sent messages:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching sent messages:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Get conversation between two users
-router.get('/conversation/:userId1/:userId2', authenticateToken, async (req, res) => {
+router.get('/conversation/:userId1/:userId2', authMiddleware, async (req, res) => {
   try {
-    const { userId1, userId2 } = req.params;
-    const id1 = parseInt(userId1);
-    const id2 = parseInt(userId2);
+    const id1 = parseInt(req.params.userId1);
+    const id2 = parseInt(req.params.userId2);
 
     if (isNaN(id1) || isNaN(id2)) {
       return res.status(400).json({ error: 'Invalid userIds' });
+    }
+
+    // Users can only access conversations they are part of
+    if (req.user.userId !== id1 && req.user.userId !== id2) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const messages = await prisma.message.findMany({
@@ -156,19 +156,27 @@ router.get('/conversation/:userId1/:userId2', authenticateToken, async (req, res
       messages,
     });
   } catch (error) {
-    console.error('Error fetching conversation:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching conversation:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Mark message as read
-router.patch('/mark-read/:messageId', authenticateToken, async (req, res) => {
+router.patch('/mark-read/:messageId', authMiddleware, async (req, res) => {
   try {
-    const { messageId } = req.params;
-    const parsedMessageId = parseInt(messageId);
+    const parsedMessageId = parseInt(req.params.messageId);
 
     if (isNaN(parsedMessageId)) {
       return res.status(400).json({ error: 'Invalid messageId' });
+    }
+
+    // Verify the message belongs to the authenticated user
+    const existing = await prisma.message.findUnique({ where: { id: parsedMessageId } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    if (existing.receiverId !== req.user.userId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     const message = await prisma.message.update({
@@ -185,19 +193,23 @@ router.patch('/mark-read/:messageId', authenticateToken, async (req, res) => {
       message,
     });
   } catch (error) {
-    console.error('Error marking message as read:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error marking message as read:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Get list of instructors for a student (to send messages)
-router.get('/instructors/:studentId', authenticateToken, async (req, res) => {
+router.get('/instructors/:studentId', authMiddleware, async (req, res) => {
   try {
-    const { studentId } = req.params;
-    const parsedStudentId = parseInt(studentId);
+    const parsedStudentId = parseInt(req.params.studentId);
 
     if (isNaN(parsedStudentId)) {
       return res.status(400).json({ error: 'Invalid studentId' });
+    }
+
+    // Users can only look up their own instructors
+    if (parsedStudentId !== req.user.userId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     // Get instructors from courses the student is enrolled in
@@ -228,19 +240,27 @@ router.get('/instructors/:studentId', authenticateToken, async (req, res) => {
       instructors,
     });
   } catch (error) {
-    console.error('Error fetching instructors:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching instructors:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Delete message
-router.delete('/:messageId', authenticateToken, async (req, res) => {
+router.delete('/:messageId', authMiddleware, async (req, res) => {
   try {
-    const { messageId } = req.params;
-    const parsedMessageId = parseInt(messageId);
+    const parsedMessageId = parseInt(req.params.messageId);
 
     if (isNaN(parsedMessageId)) {
       return res.status(400).json({ error: 'Invalid messageId' });
+    }
+
+    // Verify the message belongs to the authenticated user
+    const existing = await prisma.message.findUnique({ where: { id: parsedMessageId } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+    if (existing.senderId !== req.user.userId && existing.receiverId !== req.user.userId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
     await prisma.message.delete({
@@ -252,8 +272,8 @@ router.delete('/:messageId', authenticateToken, async (req, res) => {
       message: 'Message deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting message:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error deleting message:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

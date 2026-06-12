@@ -16,6 +16,10 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Only allow safe roles during self-registration
+    const allowedRoles = ['student', 'instructor'];
+    const assignedRole = allowedRoles.includes(role) ? role : 'student';
+
     // Check if user exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -31,7 +35,7 @@ router.post('/register', async (req, res) => {
         email,
         name,
         password: passwordHash,
-        role: role || 'student',
+        role: assignedRole,
       },
     });
 
@@ -42,7 +46,8 @@ router.post('/register', async (req, res) => {
       message: 'User registered successfully'
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Registration error:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -50,7 +55,6 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('Login attempt:', { email, passwordLength: password?.length });
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password required' });
@@ -58,23 +62,16 @@ router.post('/login', async (req, res) => {
 
     // Find user
     const user = await prisma.user.findUnique({ where: { email } });
-    console.log('User found:', !!user);
     
     if (!user) {
-      return res.status(400).json({ error: 'User not found' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
-
-    console.log('Comparing password:', {
-      plaintext: password,
-      stored_hash: user.password?.substring(0, 20) + '...'
-    });
 
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
-    console.log('Password valid:', validPassword);
     
     if (!validPassword) {
-      return res.status(400).json({ error: 'Invalid password' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // Generate JWT
@@ -92,8 +89,8 @@ router.post('/login', async (req, res) => {
       name: user.name 
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Login error:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
