@@ -63,10 +63,9 @@ const Messaging = ({ currentUserId, currentUserRole }) => {
         error: err.message,
         response: err.response,
       });
-      // Don't show error on first load, just show empty state
       setMessages([]);
       setUnreadCount(0);
-      setError(null);
+      setError('Failed to load inbox. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -84,7 +83,7 @@ const Messaging = ({ currentUserId, currentUserRole }) => {
     } catch (err) {
       console.error('Sent load error:', err);
       setMessages([]);
-      setError(null);
+      setError('Failed to load sent messages. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -184,7 +183,7 @@ const Messaging = ({ currentUserId, currentUserRole }) => {
     } catch (err) {
       console.error('Conversation load error:', err);
       setConversation([]);
-      setError(null);
+      setError('Failed to load conversation. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -273,6 +272,7 @@ const Messaging = ({ currentUserId, currentUserRole }) => {
       loadInbox();
     } catch (err) {
       console.error('Failed to mark message as read:', err);
+      setError('Failed to mark message as read.');
     }
   };
 

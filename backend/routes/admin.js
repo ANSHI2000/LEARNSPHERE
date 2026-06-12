@@ -25,7 +25,7 @@ router.get('/stats', authMiddleware, roleCheck(['admin']), async (req, res) => {
       instructors,
       students,
       completedEnrollments,
-      completionRate: ((completedEnrollments / totalEnrollments) * 100).toFixed(2) || 0,
+      completionRate: totalEnrollments > 0 ? ((completedEnrollments / totalEnrollments) * 100).toFixed(2) : '0.00',
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

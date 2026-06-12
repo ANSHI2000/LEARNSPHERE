@@ -39,8 +39,13 @@ router.post('/', authMiddleware, roleCheck(['student']), async (req, res) => {
 // Get progress for course
 router.get('/course/:courseId', authMiddleware, roleCheck(['student']), async (req, res) => {
   try {
+    const courseId = parseInt(req.params.courseId);
+    if (isNaN(courseId)) {
+      return res.status(400).json({ error: 'Invalid course ID' });
+    }
+
     const lectures = await prisma.lecture.findMany({
-      where: { courseId: parseInt(req.params.courseId) },
+      where: { courseId },
       select: { id: true },
     });
 
@@ -64,8 +69,13 @@ router.get('/course/:courseId', authMiddleware, roleCheck(['student']), async (r
 // Get last watched lecture (for resume feature)
 router.get('/course/:courseId/resume', authMiddleware, roleCheck(['student']), async (req, res) => {
   try {
+    const courseId = parseInt(req.params.courseId);
+    if (isNaN(courseId)) {
+      return res.status(400).json({ error: 'Invalid course ID' });
+    }
+
     const lectures = await prisma.lecture.findMany({
-      where: { courseId: parseInt(req.params.courseId) },
+      where: { courseId },
       orderBy: { orderIdx: 'asc' },
       select: { id: true, orderIdx: true },
     });

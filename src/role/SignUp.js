@@ -89,29 +89,36 @@ const SignUp = ({ onSwitchToLogin }) => {
     console.log('Validation passed, attempting sign up...')
     setLoading(true)
     
-    const { data, error } = await authService.signUp(
-      formData.email,
-      formData.password,
-      formData.fullName,
-      formData.role
-    )
+    try {
+      const { data, error } = await authService.signUp(
+        formData.email,
+        formData.password,
+        formData.fullName,
+        formData.role
+      )
 
-    console.log('Sign up response:', { data, error })
+      console.log('Sign up response:', { data, error })
 
-    setLoading(false)
-
-    if (error) {
-      console.error('Sign up error:', error)
+      if (error) {
+        console.error('Sign up error:', error)
+        setErrors({
+          submit: error.message || 'Failed to create account. Please try again.'
+        })
+      } else {
+        console.log('Sign up successful!')
+        setSuccess(true)
+        // Auto redirect after 3 seconds
+        setTimeout(() => {
+          onSwitchToLogin()
+        }, 3000)
+      }
+    } catch (err) {
+      console.error('Unexpected sign up error:', err)
       setErrors({
-        submit: error.message || 'Failed to create account. Please try again.'
+        submit: err.message || 'An unexpected error occurred. Please try again.'
       })
-    } else {
-      console.log('Sign up successful!')
-      setSuccess(true)
-      // Auto redirect after 3 seconds
-      setTimeout(() => {
-        onSwitchToLogin()
-      }, 3000)
+    } finally {
+      setLoading(false)
     }
   }
 

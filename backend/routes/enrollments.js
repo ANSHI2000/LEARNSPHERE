@@ -74,10 +74,15 @@ router.get('/my-courses', authMiddleware, roleCheck(['student']), async (req, re
 // Check if enrolled in course
 router.get('/check/:courseId', authMiddleware, async (req, res) => {
   try {
+    const courseId = parseInt(req.params.courseId);
+    if (isNaN(courseId)) {
+      return res.status(400).json({ error: 'Invalid course ID' });
+    }
+
     const enrollment = await prisma.enrollment.findFirst({
       where: { 
         studentId: req.user.userId, 
-        courseId: parseInt(req.params.courseId) 
+        courseId
       },
     });
 

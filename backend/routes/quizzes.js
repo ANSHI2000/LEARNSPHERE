@@ -20,6 +20,10 @@ router.post('/', authMiddleware, roleCheck(['instructor', 'admin']), async (req,
       select: { instructorId: true }
     });
 
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
     if (course.instructorId !== req.user.userId && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Not authorized' });
     }
@@ -97,8 +101,13 @@ router.post('/attempt', authMiddleware, roleCheck(['student']), async (req, res)
 // Get quizzes for a course
 router.get('/course/:courseId', authMiddleware, async (req, res) => {
   try {
+    const courseId = parseInt(req.params.courseId);
+    if (isNaN(courseId)) {
+      return res.status(400).json({ error: 'Invalid course ID' });
+    }
+
     const quizzes = await prisma.quiz.findMany({
-      where: { courseId: parseInt(req.params.courseId) },
+      where: { courseId },
       include: {
         questions: {
           select: {
@@ -134,8 +143,13 @@ router.get('/student/attempts', authMiddleware, roleCheck(['student']), async (r
 // Get quiz details
 router.get('/:quizId', async (req, res) => {
   try {
+    const quizId = parseInt(req.params.quizId);
+    if (isNaN(quizId)) {
+      return res.status(400).json({ error: 'Invalid quiz ID' });
+    }
+
     const quiz = await prisma.quiz.findUnique({
-      where: { id: parseInt(req.params.quizId) },
+      where: { id: quizId },
       include: { questions: true },
     });
 

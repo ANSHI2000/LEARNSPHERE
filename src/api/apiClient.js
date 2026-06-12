@@ -24,7 +24,17 @@ const callAPI = async (endpoint, options = {}) => {
       headers,
     });
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      const error = new Error(`Server returned non-JSON response (HTTP ${response.status})`);
+      error.response = {
+        status: response.status,
+        data: { error: `Unexpected response format (HTTP ${response.status})` },
+      };
+      throw error;
+    }
 
     if (response.status === 401) {
       // Unauthorized - clear token and redirect to login
