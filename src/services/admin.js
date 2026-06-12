@@ -1,90 +1,65 @@
-import { supabase } from './supabase'
+import { serviceQuery, serviceCommand } from './serviceHelper'
 
 export const adminService = {
-  // Get all users
   async getAllUsers() {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false })
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Get users by role
   async getUsersByRole(role) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('profiles')
         .select('*')
         .eq('role', role)
         .order('created_at', { ascending: false })
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Get pending teacher approvals
   async getPendingTeachers() {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('profiles')
         .select('*')
         .eq('role', 'teacher')
         .eq('approved', false)
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Approve teacher
   async approveTeacher(teacherId) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('profiles')
         .update({ approved: true })
         .eq('id', teacherId)
         .select()
         .single()
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   },
 
-  // Get platform analytics
   async getAnalytics() {
     try {
-      const { count: totalStudents, error: studentError } = await supabase
+      const { count: totalStudents, error: studentError } = await (await import('./supabase')).supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
         .eq('role', 'student')
         .eq('approved', true)
 
-      const { count: totalTeachers, error: teacherError } = await supabase
+      const { count: totalTeachers, error: teacherError } = await (await import('./supabase')).supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
         .eq('role', 'teacher')
         .eq('approved', true)
 
-      const { count: totalCourses, error: courseError } = await supabase
+      const { count: totalCourses, error: courseError } = await (await import('./supabase')).supabase
         .from('courses')
         .select('*', { count: 'exact', head: true })
 
-      const { count: totalEnrollments, error: enrollmentError } = await supabase
+      const { count: totalEnrollments, error: enrollmentError } = await (await import('./supabase')).supabase
         .from('enrollments')
         .select('*', { count: 'exact', head: true })
 
@@ -106,35 +81,23 @@ export const adminService = {
     }
   },
 
-  // Delete user (admin only)
   async deleteUser(userId) {
-    try {
-      const { error } = await supabase
+    return serviceCommand((supabase) =>
+      supabase
         .from('profiles')
         .delete()
         .eq('id', userId)
-
-      if (error) throw error
-      return { error: null }
-    } catch (error) {
-      return { error }
-    }
+    )
   },
 
-  // Update user role
   async updateUserRole(userId, newRole) {
-    try {
-      const { data, error } = await supabase
+    return serviceQuery((supabase) =>
+      supabase
         .from('profiles')
         .update({ role: newRole })
         .eq('id', userId)
         .select()
         .single()
-
-      if (error) throw error
-      return { data, error: null }
-    } catch (error) {
-      return { data: null, error }
-    }
+    )
   }
 }
