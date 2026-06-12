@@ -90,7 +90,7 @@ const QuizPlayer = ({ quiz, userId, courseId, onComplete, onBack }) => {
       }
     } catch (err) {
       console.error('Submit error:', err)
-      alert('Failed to submit quiz')
+      alert('Failed to submit quiz: ' + (err.message || 'An unexpected error occurred'))
     }
     
     setLoading(false)

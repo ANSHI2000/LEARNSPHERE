@@ -69,8 +69,13 @@ router.post('/', authMiddleware, roleCheck(['instructor', 'admin']), async (req,
 // Get lectures for course
 router.get('/course/:courseId', async (req, res) => {
   try {
+    const courseId = parseInt(req.params.courseId);
+    if (isNaN(courseId)) {
+      return res.status(400).json({ error: 'Invalid course ID' });
+    }
+
     const lectures = await prisma.lecture.findMany({
-      where: { courseId: parseInt(req.params.courseId) },
+      where: { courseId },
       orderBy: { orderIdx: 'asc' },
     });
 
@@ -83,8 +88,13 @@ router.get('/course/:courseId', async (req, res) => {
 // Get single lecture
 router.get('/:id', async (req, res) => {
   try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid lecture ID' });
+    }
+
     const lecture = await prisma.lecture.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
     });
 
     if (!lecture) {

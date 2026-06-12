@@ -39,7 +39,22 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
+// Global error handler — catches unhandled errors from route handlers
+app.use((err, req, res, _next) => {
+  console.error('Unhandled error:', err);
+  res.status(err.status || 500).json({ error: 'Internal server error' });
+});
+
 const PORT = process.env.PORT || 5000;
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Promise Rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
 
 app.listen(PORT, () => {
   console.log(`

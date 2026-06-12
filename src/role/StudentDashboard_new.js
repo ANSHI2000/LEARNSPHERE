@@ -24,6 +24,7 @@ const StudentDashboard = () => {
       setTotalCourses(response.data?.length || 0);
     } catch (err) {
       console.error('Error fetching total courses:', err);
+      setError('Failed to fetch total course count.');
     }
   };
 
@@ -166,6 +167,7 @@ const StudentDashboard = () => {
     } catch (err) {
       console.error('Failed to fetch course quizzes:', err);
       setSelectedCourseQuizzes([]);
+      setError('Failed to load quizzes for this course.');
     } finally {
       setLoadingCourseDetails(false);
     }

@@ -64,11 +64,6 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'User not found' });
     }
 
-    console.log('Comparing password:', {
-      plaintext: password,
-      stored_hash: user.password?.substring(0, 20) + '...'
-    });
-
     // Verify password
     const validPassword = await bcrypt.compare(password, user.password);
     console.log('Password valid:', validPassword);
@@ -78,6 +73,11 @@ router.post('/login', async (req, res) => {
     }
 
     // Generate JWT
+    if (!process.env.JWT_SECRET) {
+      console.error('JWT_SECRET is not configured');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     const token = jwt.sign(
       { userId: user.id, role: user.role, email: user.email },
       process.env.JWT_SECRET,

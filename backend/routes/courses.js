@@ -77,8 +77,13 @@ router.get('/instructor/my-courses', authMiddleware, roleCheck(['instructor']), 
 // Get single course by ID
 router.get('/:id', async (req, res) => {
   try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid course ID' });
+    }
+
     const course = await prisma.course.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       include: {
         instructor: { select: { name: true, id: true } },
         lectures: { orderBy: { orderIdx: 'asc' } },
@@ -98,8 +103,13 @@ router.get('/:id', async (req, res) => {
 // Publish course (Instructor only)
 router.post('/:id/publish', authMiddleware, roleCheck(['instructor', 'admin']), async (req, res) => {
   try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid course ID' });
+    }
+
     const course = await prisma.course.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       data: { published: true },
     });
 
@@ -113,7 +123,10 @@ router.post('/:id/publish', authMiddleware, roleCheck(['instructor', 'admin']), 
 router.delete('/:id', authMiddleware, roleCheck(['instructor', 'admin']), async (req, res) => {
   try {
     const courseId = parseInt(req.params.id);
-    
+    if (isNaN(courseId)) {
+      return res.status(400).json({ error: 'Invalid course ID' });
+    }
+
     // Check if course exists and belongs to instructor
     const course = await prisma.course.findUnique({
       where: { id: courseId }

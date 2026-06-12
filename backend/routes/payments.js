@@ -123,8 +123,13 @@ router.post('/verify-payment', authMiddleware, async (req, res) => {
 // Get payment status
 router.get('/status/:enrollmentId', authMiddleware, async (req, res) => {
   try {
+    const enrollmentId = parseInt(req.params.enrollmentId);
+    if (isNaN(enrollmentId)) {
+      return res.status(400).json({ error: 'Invalid enrollment ID' });
+    }
+
     const enrollment = await prisma.enrollment.findUnique({
-      where: { id: parseInt(req.params.enrollmentId) }
+      where: { id: enrollmentId }
     });
 
     if (!enrollment) {
