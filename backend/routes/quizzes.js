@@ -113,7 +113,7 @@ router.get('/course/:courseId', authMiddleware, async (req, res) => {
 
     res.json(quizzes);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -131,8 +131,8 @@ router.get('/student/attempts', authMiddleware, roleCheck(['student']), async (r
   }
 });
 
-// Get quiz details
-router.get('/:quizId', async (req, res) => {
+// Get quiz details (authenticated - excludes correct answers for students)
+router.get('/:quizId', authMiddleware, async (req, res) => {
   try {
     const quiz = await prisma.quiz.findUnique({
       where: { id: parseInt(req.params.quizId) },
@@ -143,9 +143,19 @@ router.get('/:quizId', async (req, res) => {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
+    // Strip correctAnswer for students to prevent cheating
+    if (req.user.role === 'student') {
+      quiz.questions = quiz.questions.map(q => ({
+        id: q.id,
+        question: q.question,
+        options: q.options,
+        quizId: q.quizId,
+      }));
+    }
+
     res.json(quiz);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

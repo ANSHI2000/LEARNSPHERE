@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 const { authMiddleware, roleCheck } = require('../middleware/auth');
 const Razorpay = require('razorpay');
@@ -11,9 +12,13 @@ const isUniqueConstraintError = (error) => {
 };
 
 // Initialize Razorpay
+if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+  console.warn('WARNING: RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET not set. Payment features will not work.');
+}
+
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_1xxxxxxxxxxxxxxxxxx',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || 'xxxxxxxxxxxxxxxx',
+  key_id: process.env.RAZORPAY_KEY_ID || '',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
 });
 
 // Create order for course enrollment
@@ -74,8 +79,19 @@ router.post('/verify-payment', authMiddleware, async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, courseId } = req.body;
     const userId = req.user.userId;
 
-    // Note: In production, verify signature with Razorpay key_secret
-    // For now, we'll trust the frontend sent valid data
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: 'Missing payment verification fields' });
+    }
+
+    // Verify Razorpay signature
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ error: 'Payment verification failed' });
+    }
 
     const parsedCourseId = parseInt(courseId);
 

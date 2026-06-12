@@ -48,8 +48,6 @@ router.post('/', authMiddleware, roleCheck(['student']), async (req, res) => {
 // Get enrolled courses for student
 router.get('/my-courses', authMiddleware, roleCheck(['student']), async (req, res) => {
   try {
-    console.log('Fetching enrollments for user:', req.user.userId);
-    
     const enrollments = await prisma.enrollment.findMany({
       where: { studentId: req.user.userId },
       include: { 
@@ -63,11 +61,10 @@ router.get('/my-courses', authMiddleware, roleCheck(['student']), async (req, re
       },
     });
 
-    console.log('Enrollments found:', enrollments.length);
     res.json(enrollments);
   } catch (error) {
-    console.error('Error fetching enrollments:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching enrollments:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
